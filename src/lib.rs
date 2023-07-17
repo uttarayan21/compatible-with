@@ -1,5 +1,17 @@
+//! # CompatibleWith
+//! Compatibility Layer for older data using serde
+//! You just need to provide a `Current: From<Old>` implementation
+//! And the rest is handled automatically
+//! Keep in mind that this uses untagged enums so it comes with performance cost
+
 use serde::*;
 
+/// This is the main type you will be using
+/// It wraps your old and current type and provides a way to deserialize existing data that might
+/// match either of the types
+/// It will deserialize the old type into an deserialize impl for the old type and then convert it
+/// to the new type
+#[derive(PartialEq, PartialOrd, Ord, Eq, Debug, Hash, Clone, Copy)]
 pub struct CompatibleWith<Old, Current>(Alt<Old, Current>);
 
 impl<Old, Current> CompatibleWith<Old, Current>
@@ -23,6 +35,7 @@ where
 
 #[derive(Deserialize)]
 #[serde(untagged)]
+#[derive(PartialEq, PartialOrd, Ord, Eq, Debug, Hash, Clone, Copy)]
 pub enum Alt<Old, Current> {
     Old(Old),
     Current(Current),
@@ -38,7 +51,8 @@ where
         D: serde::de::Deserializer<'de>,
     {
         let alt = Alt::deserialize(deserializer)?;
-        Ok(CompatibleWith(alt))
+
+        Ok(CompatibleWith(alt).make_current())
     }
 }
 
@@ -116,7 +130,7 @@ pub fn test_complex() {
 
     #[derive(Serialize, Deserialize)]
     pub struct New {
-        dirs: CompatibleWith<Dir, DirNode>,
+        pub dirs: CompatibleWith<Vec<Dir>, DirNode>,
     }
 
     impl From<Dir> for DirNode {
@@ -164,4 +178,10 @@ pub fn test_complex() {
     };
 
     let old_serialized = serde_json::to_string(&old).unwrap();
+    let migrated: New = serde_json::from_str(&old_serialized).unwrap();
+    let migrated_serialized = serde_json::to_string(&migrated).unwrap();
+    assert_eq!(
+        migrated_serialized,
+        r#"{"dirs":{"id":0,"name":"root","path":"/","children":[{"id":1,"name":"a","path":"/a","children":[]},{"id":2,"name":"b","path":"/b","children":[]}]}}"#
+    );
 }

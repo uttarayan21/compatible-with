@@ -1,9 +1,9 @@
 [package]
-name = "serde-compat"
+name = "serde-compat-with"
 version = "0.1.0"
 edition = "2021"
 description = "Backward compatibility with older data using serde's untagged enums"
-license = "LICENSE"
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
