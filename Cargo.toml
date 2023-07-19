@@ -21,4 +21,4 @@ members = [
 
 [workspace.dependencies]
 serde = { version = "1.0.171", features = ["derive"] }
-compatible-with-derive = { version = "0.1.0", path = "compatible-with-derive", registry = "ktra" }
+compatible-with-derive = { version = "0.1.0", path = "compatible-with-derive" }
