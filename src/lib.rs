@@ -1,16 +1,22 @@
 //! # CompatibleWith
-//! Compatibility Layer for older data using serde
-//! You just need to provide a `Current: From<Old>` implementation
-//! And the rest is handled automatically
-//! Keep in mind that this uses untagged enums so it comes with performance cost
+//! Compatibility Layer for older data using serde  
+//! You just need to provide a `Current: From<Old>` implementation  
+//! And the rest is handled automatically  
+//! Keep in mind that this uses untagged enums so it comes with performance cost  
 
 use serde::*;
 
-/// This is the main type you will be using
-/// It wraps your old and current type and provides a way to deserialize existing data that might
-/// match either of the types
-/// It will deserialize the old type into an deserialize impl for the old type and then convert it
-/// to the new type
+/// This is the main type you will be using  
+/// It wraps your old and current type and provides a way to deserialize existing data that might  
+/// match either of the types  
+/// It will deserialize the old type into an deserialize impl for the old type and then convert it  
+/// to the new type  
+/// ```rust,ignore
+/// pub struct SomeType {
+///     #[serde(with = "CompatibleWith<Old, Current>"]
+///     my_var: Current,
+/// }
+/// ```
 #[derive(PartialEq, PartialOrd, Ord, Eq, Debug, Hash, Clone, Copy)]
 pub struct CompatibleWith<Old, Current>(Alt<Old, Current>);
 
