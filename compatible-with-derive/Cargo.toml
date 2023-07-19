@@ -2,6 +2,9 @@
 name = "compatible-with-derive"
 version = "0.1.0"
 edition = "2021"
+description = "Derive some types for easier use of compatible-with crate"
+license = "MIT"
+repository = "https://github.com/uttarayan21/compatible-with"
 
 [lib]
 proc-macro = true
