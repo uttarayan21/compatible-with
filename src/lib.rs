@@ -47,6 +47,23 @@ where
     }
 }
 
+mod with {
+    use super::{Compatible, CompatibleWith};
+    use serde::Deserialize;
+
+    impl<Old, Current> Compatible<Old, Current> {
+        pub fn deserialize_with<'de, D>(deserializer: D) -> Result<Current, D::Error>
+        where
+            D: serde::de::Deserializer<'de>,
+            Self: Deserialize<'de>,
+            Current: CompatibleWith<Old>,
+        {
+            let compatible: Compatible<Old, Current> = Compatible::deserialize(deserializer)?;
+            Ok(compatible.into_current())
+        }
+    }
+}
+
 #[derive(PartialEq, PartialOrd, Ord, Eq, Debug, Hash, Clone, Copy)]
 pub struct Compatible<Old, Current>(Alt<Old, Current>);
 
@@ -220,4 +237,40 @@ pub fn test_complex() {
         migrated_serialized,
         r#"{"dirs":{"id":0,"name":"root","path":"/","children":[{"id":1,"name":"a","path":"/a","children":[]},{"id":2,"name":"b","path":"/b","children":[]}]}}"#
     );
+}
+
+#[test]
+pub fn test_with() {
+    use serde::*;
+
+    #[derive(Debug, Deserialize, PartialEq)]
+    pub struct MyType(String);
+
+    #[derive(Serialize)]
+    pub struct Old {
+        pub a: i32,
+    }
+
+    impl From<i32> for MyType {
+        fn from(value: i32) -> Self {
+            MyType(value.to_string())
+        }
+    }
+    // impl<T: ToString> From<T> for MyType {
+    //     fn from(value: T) -> Self {
+    //         MyType(value.to_string())
+    //     }
+    // }
+
+    #[derive(Deserialize)]
+    pub struct New {
+        #[serde(deserialize_with = "Compatible::<i32, MyType>::deserialize_with")]
+        pub a: MyType,
+    }
+
+    let old = Old { a: 1 };
+    let old_serialized = serde_json::to_string(&old).unwrap();
+    let migrated: New = serde_json::from_str(&old_serialized).unwrap();
+
+    assert_eq!(migrated.a, MyType("1".into()));
 }
