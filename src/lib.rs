@@ -1,9 +1,9 @@
-//! # CompatibleWith
+//! # Compatible
 //! Compatibility Layer for older data using serde  
 //! You just need to provide a `Current: From<Old>` implementation  
 //! And the rest is handled automatically  
 //! Keep in mind that this uses untagged enums so it comes with performance cost  
-
+pub use compatible_with_derive::CompatibleWith;
 use serde::*;
 
 /// This is the main type you will be using  
@@ -12,28 +12,58 @@ use serde::*;
 /// It will deserialize the old type into an deserialize impl for the old type and then convert it  
 /// to the new type  
 /// ```rust,ignore
+/// #[derive(Serialize, Deserialize)]
+/// pub struct Current;
 /// pub struct SomeType {
-///     #[serde(with = "CompatibleWith<Old, Current>"]
 ///     my_var: Current,
 /// }
 /// ```
-#[derive(PartialEq, PartialOrd, Ord, Eq, Debug, Hash, Clone, Copy)]
-pub struct CompatibleWith<Old, Current>(Alt<Old, Current>);
 
-impl<Old, Current> CompatibleWith<Old, Current>
+/// The `Current` version of the struct is `CompatibleWith<Old>`
+pub trait CompatibleWith<Old> {
+    fn from_old(value: Old) -> Self;
+}
+
+/// The `Old` is `CompatibleTo<Current>` version of the struct
+pub trait CompatibleTo<Current> {
+    fn into_current(self) -> Current;
+}
+
+impl<Old, Current> CompatibleWith<Old> for Current
 where
     Current: From<Old>,
 {
+    fn from_old(value: Old) -> Self {
+        value.into()
+    }
+}
+
+impl<Old, Current> CompatibleTo<Current> for Old
+where
+    Current: CompatibleWith<Old>,
+{
+    fn into_current(self) -> Current {
+        Current::from_old(self)
+    }
+}
+
+#[derive(PartialEq, PartialOrd, Ord, Eq, Debug, Hash, Clone, Copy)]
+pub struct Compatible<Old, Current>(Alt<Old, Current>);
+
+impl<Old, Current> Compatible<Old, Current>
+where
+    Current: CompatibleWith<Old>,
+{
     pub fn into_current(self) -> Current {
         match self.0 {
-            Alt::Old(old) => old.into(),
+            Alt::Old(old) => old.into_current(),
             Alt::Current(current) => current,
         }
     }
 
     pub fn make_current(mut self) -> Self {
         if let Alt::Old(old) = self.0 {
-            self.0 = Alt::Current(old.into())
+            self.0 = Alt::Current(old.into_current())
         };
         self
     }
@@ -47,9 +77,9 @@ pub enum Alt<Old, Current> {
     Current(Current),
 }
 
-impl<'de, Old, Current> serde::de::Deserialize<'de> for CompatibleWith<Old, Current>
+impl<'de, Old, Current> serde::de::Deserialize<'de> for Compatible<Old, Current>
 where
-    Current: From<Old>,
+    Current: CompatibleWith<Old>,
     Alt<Old, Current>: serde::de::Deserialize<'de>,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -58,11 +88,11 @@ where
     {
         let alt = Alt::deserialize(deserializer)?;
 
-        Ok(CompatibleWith(alt).make_current())
+        Ok(Compatible(alt).make_current())
     }
 }
 
-impl<Old, Current> serde::ser::Serialize for CompatibleWith<Old, Current>
+impl<Old, Current> serde::ser::Serialize for Compatible<Old, Current>
 where
     Old: Serialize,
     Current: Serialize,
@@ -103,7 +133,7 @@ pub fn test_simple() {
 
     let old = Old { a: 1 };
     let old_serialized = serde_json::to_string(&old).unwrap();
-    let migrated: CompatibleWith<Old, New> = serde_json::from_str(&old_serialized).unwrap();
+    let migrated: Compatible<Old, New> = serde_json::from_str(&old_serialized).unwrap();
     let migrated = migrated.into_current();
 
     assert_eq!(migrated.a, "1");
@@ -136,7 +166,7 @@ pub fn test_complex() {
 
     #[derive(Serialize, Deserialize)]
     pub struct New {
-        pub dirs: CompatibleWith<Vec<Dir>, DirNode>,
+        pub dirs: Compatible<Vec<Dir>, DirNode>,
     }
 
     impl From<Dir> for DirNode {
