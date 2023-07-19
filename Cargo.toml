@@ -5,6 +5,7 @@ edition = "2021"
 description = "Backward compatibility with older data using serde's untagged enums"
 license = "MIT"
 repository = "https://github.com/uttarayan21/compatible-with"
+documentation = "https://docs.rs/compatible-with"
 
 [dependencies]
 serde = { workspace = true }
